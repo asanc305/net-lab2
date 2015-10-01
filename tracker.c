@@ -8,6 +8,9 @@
 #include <arpa/inet.h>
 #include <dirent.h>
 #include <fcntl.h>
+#include <pthread.h>
+
+char info[5][500] ;
 
 void syserr ( char *msg )
 {
@@ -15,14 +18,43 @@ void syserr ( char *msg )
   exit( -1 ) ;
 }
 
+void * Connected ( void *x )
+{
+  int newsockfd, n, i, id ;
+  char buffer[255] ;
+  char *token ;
+  const char del[2] = " " ;
+
+  token = strtok( ( char* ) x, del ) ;
+  id = atoi( token ) ;
+  token = strtok( NULL, del ) ;
+  newsockfd = atoi( token ) ;
+
+  printf( "Waiting for command\n" ) ;
+  n = recv( newsockfd, buffer, sizeof( buffer ), 0 ) ;
+  if ( n < 0 ) syserr( "Error message not received\n" ) ;
+  buffer[n] = '\0' ;
+
+  if ( strcmp( buffer, "list" ) == 0 ) 
+  {
+    for ( i = 0; i <5; i++ )
+      if ( strcmp( info[i], "a" ) != 0 ) printf( "Files at %i\n%s", id, info[i] ) ;          
+  }
+  else
+  {
+    //delete record
+  }
+}
+
 int main ( int argc, char *argv[] )
 {
-  int sockfd, newsockfd, portno, connected, n, i, id ;
+  int sockfd, newsockfd, portno, n, i, id ;
   struct sockaddr_in serv_addr, clt_addr ;
   pid_t child ;
   socklen_t addrlen ;
   char buffer[255] ;
-  char info[5][500] ;
+  char sockets[5][10] ;
+  pthread_t threads[5] ;
   
   if ( argc != 2 ) portno = 5000 ;
   else portno = atoi ( argv[1] ) ;
@@ -51,40 +83,15 @@ int main ( int argc, char *argv[] )
     addrlen = sizeof( clt_addr ) ;
     newsockfd = accept( sockfd, ( struct sockaddr* ) &clt_addr, &addrlen ) ;
     if ( newsockfd < 0 ) syserr( "Error can't accept\n" ) ;
-    id ++ ;
 
-    child = fork() ;
-    if ( child < 0 ) syserr( "Fork error" ) ;
-    else if ( child == 0 ) 
-    {
-      recv( newsockfd, buffer, sizeof( buffer ), 0 ) ;
-     
-      strcpy( info[id], buffer ) ;
-      connected = 1 ;
-      
-      while( connected )
-      {
-        printf( "Waiting for command\n" ) ;
-        n = recv( newsockfd, buffer, sizeof( buffer ), 0 ) ;
-        if ( n < 0 ) syserr( "Error message not received\n" ) ;
-        buffer[n] = '\0' ;
+    recv( newsockfd, buffer, sizeof( buffer ), 0 ) ;     
+    strcpy( info[id], buffer ) ;
+    
+    sprintf( sockets[id], "%i %i", id, newsockfd ) ;
+    if ( pthread_create( &threads[id], NULL, Connected, ( void* ) sockets[id] ) != 0 )
+      syserr( "Pthread\n" ) ; 
 
-        if ( strcmp( buffer, "list" ) == 0 ) 
-        {
-          for ( i = 0; i <=5; i++ )
-          {
-            if ( info[i] == "a" ) break ;
-            printf( "Files at %i\n%s", id, info[i] ) ;          
-          }
-        }
-        else
-        {
-          connected = 0 ;
-          info[i][0] = '\0' ;
-        }
-      }
-    }  
-     
+    id++ ;
   }  
 }
   
