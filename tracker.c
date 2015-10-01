@@ -30,19 +30,24 @@ void * Connected ( void *x )
   token = strtok( NULL, del ) ;
   newsockfd = atoi( token ) ;
 
-  printf( "Waiting for command\n" ) ;
-  n = recv( newsockfd, buffer, sizeof( buffer ), 0 ) ;
-  if ( n < 0 ) syserr( "Error message not received\n" ) ;
-  buffer[n] = '\0' ;
+  while( id >= 0 )
+  {
+    printf( "Waiting for command\n" ) ;
+    n = recv( newsockfd, buffer, sizeof( buffer ), 0 ) ;
+    if ( n < 0 ) syserr( "Error message not received\n" ) ;
+    buffer[n] = '\0' ;
 
-  if ( strcmp( buffer, "list" ) == 0 ) 
-  {
-    for ( i = 0; i <5; i++ )
-      if ( strcmp( info[i], "a" ) != 0 ) printf( "Files at %i\n%s", id, info[i] ) ;          
-  }
-  else
-  {
-    //delete record
+    if ( strcmp( buffer, "list" ) == 0 ) 
+    {
+      for ( i = 0; i <5; i++ )
+        if ( strcmp( info[i], "a" ) != 0 ) printf( "Files at %i\n%s\n", i, info[i] ) ;          
+    }
+    else if ( strcmp( buffer, "update" ) == 0 )
+    {
+      //update record
+    }
+    else {
+    } // delete record
   }
 }
 
