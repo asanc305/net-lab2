@@ -42,7 +42,7 @@ void printlist ( char *list )
 
 int connection ( char * args[] )
 {
-  int sockfd, portno, n ;
+  int sockfd, portno ;
   char list[255] ; 
   struct hostent* server ;
   struct sockaddr_in serv_addr ;
@@ -67,7 +67,7 @@ int connection ( char * args[] )
   printf( "connect...\n" ) ;
   
   list[0] = '\0' ;
-  if ( args[3] == NULL ) strcat( list, "6000" ) ;
+  if ( args[2] == NULL || args[3] == NULL ) strcat( list, "6000" ) ;
   else strcat( list, args[3] ) ;
   printlist( list ) ;
   
@@ -78,11 +78,42 @@ int connection ( char * args[] )
 
 int main ( int argc, char *argv[] )
 {
-  int sockfd ;
+  int sockfd, cTracker, n ;
+  char buffer[255] ;
+  char *token ;
+  const char del[2] = " " ;
+
   struct hostent* server ;
   
   server = gethostbyname(argv[1]) ;
   
   sockfd = connection(argv) ;
 
+  cTracker = 1 ;
+  while( cTracker )
+  {
+    printf("PLEASE ENTER MESSAGE: ") ;
+    fgets( buffer, 255, stdin ) ;
+    n = strlen( buffer ) ;
+    if(n>0 && buffer[n-1] == '\n') buffer[n-1] = '\0' ;
+   
+    token = strtok(buffer, del) ;
+
+    if ( strcmp( token, "list" ) == 0 )
+    {
+      strcpy( buffer, "list" ) ;
+      send( sockfd, buffer, sizeof( buffer ), 0 ) ;
+      printf( "Bufffer : %s\n", buffer ) ;
+    }
+    else if ( strcmp( token, "download" ) == 0 )
+    {
+      //download file
+    }
+    else if ( strcmp( token, "exit" ) == 0 )
+    {
+      //terminate connection
+    }
+    else printf( "Error command does not exist!\n" ) ;
+  }
+ 
 }
