@@ -70,7 +70,7 @@ int connection ( char * args[] )
   if ( args[2] == NULL || args[3] == NULL ) strcat( list, "6000" ) ;
   else strcat( list, args[3] ) ;
   printlist( list ) ;
-  
+  list[strlen ( list )] = '\0' ;
   send( sockfd, list, sizeof( list ), 0 ) ;
   
   return sockfd ;
@@ -80,6 +80,7 @@ int main ( int argc, char *argv[] )
 {
   int sockfd, cTracker, n ;
   char buffer[255] ;
+  char lbuffer[500] ;
   char *token ;
   const char del[2] = " " ;
 
@@ -103,7 +104,9 @@ int main ( int argc, char *argv[] )
     {
       strcpy( buffer, "list" ) ;
       send( sockfd, buffer, sizeof( buffer ), 0 ) ;
-      printf( "Bufffer : %s\n", buffer ) ;
+      
+      recv( sockfd, lbuffer, sizeof(lbuffer), 0) ;
+      printf( "%s\n", lbuffer ) ;
     }
     else if ( strcmp( token, "download" ) == 0 )
     {
@@ -111,7 +114,9 @@ int main ( int argc, char *argv[] )
     }
     else if ( strcmp( token, "exit" ) == 0 )
     {
-      //terminate connection
+      send( sockfd, buffer, sizeof( buffer ), 0 ) ;
+      printf("buffer %s\n", buffer) ; 
+      cTracker = 0 ; 
     }
     else printf( "Error command does not exist!\n" ) ;
   }

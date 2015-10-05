@@ -22,6 +22,7 @@ void * Connected ( void *x )
 {
   int newsockfd, n, i, id ;
   char buffer[255] ;
+  char lbuffer[500] ;
   char *token ;
   const char del[2] = " " ;
 
@@ -40,15 +41,28 @@ void * Connected ( void *x )
     if ( strcmp( buffer, "list" ) == 0 ) 
     {
       for ( i = 0; i <5; i++ )
-        if ( strcmp( info[i], "a" ) != 0 ) printf( "Files at %i\n%s\n", i, info[i] ) ;          
+      {
+        if ( strcmp( info[i], "a" ) != 0 ) 
+        {
+          strcat( lbuffer, info[i] ) ;
+        }
+      }        
+      send( newsockfd, lbuffer, sizeof( lbuffer ), 0 ) ;
     }
     else if ( strcmp( buffer, "update" ) == 0 )
     {
       //update record
+      recv( newsockfd, buffer, sizeof( buffer ), 0 ) ;
+      strcpy( info[id], buffer ) ;
     }
-    else {
-    } // delete record
+    else 
+    {
+      //delete record 
+      strcpy( info[id], "a" ) ;
+      id = -1 ;
+    } 
   }
+  pthread_exit( NULL ) ;
 }
 
 int main ( int argc, char *argv[] )
