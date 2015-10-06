@@ -121,11 +121,11 @@ void * server ( void *x )
 
 int main ( int argc, char *argv[] )
 {
-  int sockfd, cTracker, n, len, total, serverport, portno, newsockfd ;
+  int sockfd, cTracker, n, len, total, serverport, peerport, newsockfd ;
   char buffer[255] ;
   char lbuffer[500] ;
   char lbuffer2[500] ;
-  char port[6] ;
+  char localport[6] ;
   char filenum[5] ;
   char filename[15] ;
   char addr[15] ;
@@ -139,12 +139,12 @@ int main ( int argc, char *argv[] )
   else serverport = atoi( argv[2] ) ;
   sockfd = connectTo( argv[1], serverport ) ;
 
-  if ( argc == 4 ) strcpy( port, argv[3] )  ;
-  else strcpy( port, "6000" ); 
+  if ( argc == 4 ) strcpy( localport, argv[3] )  ;
+  else strcpy( localport, "6000" ); 
   
-  printlist( port, sockfd ) ;
+  printlist( localport, sockfd ) ;
   
-  if ( pthread_create( &threads[0], NULL, server, ( void* ) port ) != 0 )
+  if ( pthread_create( &threads[0], NULL, server, ( void* ) localport ) != 0 )
       syserr( "Pthread\n" ) ; 
 
   cTracker = 1 ;
@@ -191,9 +191,9 @@ int main ( int argc, char *argv[] )
         strcpy( addr, token ) ;
         
         token = strtok( NULL, del ) ;
-        portno = atoi( token ) ;
+        peerport = atoi( token ) ;
         
-        newsockfd = connectTo( addr, portno ) ;
+        newsockfd = connectTo( addr, peerport ) ;
         strcpy( buffer, filename) ;
         n = send( newsockfd, buffer, sizeof( buffer ), 0 ) ;
         
@@ -218,7 +218,7 @@ int main ( int argc, char *argv[] )
             strcpy( buffer, "update" ) ; 
             send( sockfd, buffer, sizeof( buffer ), 0 ) ;
             
-            strcpy( buffer, filename) ;
+            sprintf( buffer, "%s %s", filename, localport ) ;
             send( sockfd, buffer, sizeof( buffer ), 0 ) ;
           }
           else

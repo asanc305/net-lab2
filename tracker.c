@@ -41,6 +41,7 @@ void * Connected ( void *x )
   int newsockfd, n, i, id, ct ;
   char buffer[255] ;
   char lbuffer[500] ;
+  char filename[15] ;
   char *token ;
   char *ip ;
   char port[6] ;
@@ -89,7 +90,11 @@ void * Connected ( void *x )
     {
       //update record
       recv( newsockfd, buffer, sizeof( buffer ), 0 ) ;
-      sprintf( lbuffer, "%s %s:%s\n", buffer, ip, port ) ;
+      token = strtok( buffer, " " ) ;
+      strcpy( filename, token ) ;
+      
+      token = strtok( NULL, " " ) ;
+      sprintf( lbuffer, "%s %s:%s\n", filename, ip, token ) ;
       printf("len %zd\n", strlen(lbuffer) ) ;
       strcat( info[id], lbuffer ) ;
     }
