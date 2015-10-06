@@ -18,18 +18,44 @@ void syserr ( char *msg )
   exit( -1 ) ;
 }
 
+void addList ( char *files, char *ip, int id )
+{
+  char *token ;
+  char buffer[200] ;
+  const char del[2] = " " ;
+  char port[10] ;
+  
+  token = strtok( files, del ) ;
+  strcpy( port, token )  ;
+  
+  token = strtok( NULL, del ) ;
+  while ( token != NULL )
+  {
+    sprintf( buffer, "%s %s:%s\n", token, ip, port) ;
+    strcat( info[id], buffer) ;
+    token = strtok( NULL, del ) ; 
+  }
+}
 void * Connected ( void *x )
 {
-  int newsockfd, n, i, id ;
+  int newsockfd, n, i, id, ct ;
   char buffer[255] ;
   char lbuffer[500] ;
   char *token ;
-  const char del[2] = " " ;
+  char *ip ;
+  char port[6] ;
+  char info2[5][500] ;
+  const char del[2] = "\n" ;
 
-  token = strtok( ( char* ) x, del ) ;
+  token = strtok( ( char* ) x, " " ) ;
   id = atoi( token ) ;
-  token = strtok( NULL, del ) ;
-  newsockfd = atoi( token ) ;
+  token = strtok( NULL, " " ) ;
+  
+  strcpy( port, token ) ;
+  
+  newsockfd = atoi( port ) ;
+  token = strtok( NULL, " " ) ;
+  ip = token ;
 
   while( id >= 0 )
   {
@@ -40,25 +66,37 @@ void * Connected ( void *x )
 
     if ( strcmp( buffer, "list" ) == 0 ) 
     {
+      ct = 0 ;
+      lbuffer[0] = '\0' ;
       for ( i = 0; i <5; i++ )
       {
-        if ( strcmp( info[i], "a" ) != 0 ) 
+        if ( strlen( info[i] ) != 0 ) 
         {
-          strcat( lbuffer, info[i] ) ;
+          strcpy( info2[i], info[i] ) ;
+          token = strtok( info2[i] , del) ;
+          while ( token != NULL ) 
+          {
+            sprintf( buffer, "[%i] %s\n", ct, token ) ;
+            strcat( lbuffer, buffer ) ;
+            ct++ ;
+            token = strtok( NULL, del) ;
+          }
         }
-      }        
-      send( newsockfd, lbuffer, sizeof( lbuffer ), 0 ) ;
+      }         
+      send( newsockfd, lbuffer, sizeof( lbuffer ), 0 ) ;  
     }
     else if ( strcmp( buffer, "update" ) == 0 )
     {
       //update record
       recv( newsockfd, buffer, sizeof( buffer ), 0 ) ;
-      strcpy( info[id], buffer ) ;
+      sprintf( lbuffer, "%s %s:%s\n", buffer, ip, port ) ;
+      printf("len %zd\n", strlen(lbuffer) ) ;
+      strcat( info[id], lbuffer ) ;
     }
     else 
     {
       //delete record 
-      strcpy( info[id], "a" ) ;
+      info[id][0] = '\0' ;
       id = -1 ;
     } 
   }
@@ -68,11 +106,11 @@ void * Connected ( void *x )
 int main ( int argc, char *argv[] )
 {
   int sockfd, newsockfd, portno, n, i, id ;
+  char * ip ;
   struct sockaddr_in serv_addr, clt_addr ;
-  pid_t child ;
   socklen_t addrlen ;
   char buffer[255] ;
-  char sockets[5][10] ;
+  char sockets[5][20] ;
   pthread_t threads[5] ;
   
   if ( argc != 2 ) portno = 5000 ;
@@ -93,7 +131,7 @@ int main ( int argc, char *argv[] )
 
   id = 0 ; 
 
-  for (i = 0; i <= 5; i++ ) strcpy ( info[i], "a" ) ;
+  for (i = 0; i <= 5; i++ ) info[i][0] = '\0' ;
   
   for( ;; )
   {
@@ -103,10 +141,12 @@ int main ( int argc, char *argv[] )
     newsockfd = accept( sockfd, ( struct sockaddr* ) &clt_addr, &addrlen ) ;
     if ( newsockfd < 0 ) syserr( "Error can't accept\n" ) ;
 
-    recv( newsockfd, buffer, sizeof( buffer ), 0 ) ;     
-    strcpy( info[id], buffer ) ;
+    ip = inet_ntoa( clt_addr.sin_addr ) ;
     
-    sprintf( sockets[id], "%i %i", id, newsockfd ) ;
+    recv( newsockfd, buffer, sizeof( buffer ), 0 ) ;
+    addList( buffer, ip, id ) ;  
+    
+    sprintf( sockets[id], "%i %i %s", id, newsockfd, ip ) ;
     if ( pthread_create( &threads[id], NULL, Connected, ( void* ) sockets[id] ) != 0 )
       syserr( "Pthread\n" ) ; 
 
