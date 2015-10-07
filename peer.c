@@ -129,6 +129,7 @@ int main ( int argc, char *argv[] )
   char filenum[5] ;
   char filename[15] ;
   char addr[15] ;
+  char files[2500] ;
   char *token ;  
   char *line ;
   FILE *in ;
@@ -160,6 +161,7 @@ int main ( int argc, char *argv[] )
     if ( strcmp( token, "list" ) == 0 )
     {
       strcpy( buffer, "list" ) ;
+      files[0] = '\0' ;
       send( sockfd, buffer, sizeof( buffer ), 0 ) ;
       
       recv( sockfd, buffer, sizeof( buffer ), 0 ) ;
@@ -169,6 +171,7 @@ int main ( int argc, char *argv[] )
       {      
         recv( sockfd, lbuffer, sizeof( lbuffer ), 0) ;
         printf( "%s\n", lbuffer ) ;
+        strcat( files, lbuffer ) ;
         users-- ;
       }
     }
@@ -180,7 +183,7 @@ int main ( int argc, char *argv[] )
       token = strtok( NULL, del) ;
       sprintf( filenum, "[%s]", token ) ;
       
-      line = strtok( lbuffer2, "\n" ) ;
+      line = strtok( files, "\n" ) ;
       while ( line != NULL )
       {
         if ( strstr( line, filenum ) != NULL ) break ;
