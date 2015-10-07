@@ -121,7 +121,7 @@ void * server ( void *x )
 
 int main ( int argc, char *argv[] )
 {
-  int sockfd, cTracker, n, len, total, serverport, peerport, newsockfd ;
+  int sockfd, cTracker, n, len, total, serverport, peerport, newsockfd, users ;
   char buffer[255] ;
   char lbuffer[500] ;
   char lbuffer2[500] ;
@@ -162,8 +162,15 @@ int main ( int argc, char *argv[] )
       strcpy( buffer, "list" ) ;
       send( sockfd, buffer, sizeof( buffer ), 0 ) ;
       
-      recv( sockfd, lbuffer, sizeof(lbuffer), 0) ;
-      printf( "%s\n", lbuffer ) ;
+      recv( sockfd, buffer, sizeof( buffer ), 0 ) ;
+      users = atoi( buffer ) ;
+      
+      while ( users > 0 )
+      {      
+        recv( sockfd, lbuffer, sizeof( lbuffer ), 0) ;
+        printf( "%s\n", lbuffer ) ;
+        users-- ;
+      }
     }
     else if ( strcmp( token, "download" ) == 0 )
     {

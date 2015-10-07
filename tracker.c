@@ -11,6 +11,7 @@
 #include <pthread.h>
 
 char info[5][500] ;
+int users = 0 ;
 
 void syserr ( char *msg )
 {
@@ -35,6 +36,7 @@ void addList ( char *files, char *ip, int id )
     strcat( info[id], buffer) ;
     token = strtok( NULL, del ) ; 
   }
+  users ++ ;  
 }
 void * Connected ( void *x )
 {
@@ -67,12 +69,15 @@ void * Connected ( void *x )
 
     if ( strcmp( buffer, "list" ) == 0 ) 
     {
+      sprintf( buffer, "%i", users ) ;
+      send( newsockfd, buffer, sizeof( buffer ), 0 ) ;
       ct = 0 ;
-      lbuffer[0] = '\0' ;
+      
       for ( i = 0; i <5; i++ )
       {
+        lbuffer[0] = '\0' ;
         if ( strlen( info[i] ) != 0 ) 
-        {
+        {          
           strcpy( info2[i], info[i] ) ;
           token = strtok( info2[i] , del) ;
           while ( token != NULL ) 
@@ -82,9 +87,11 @@ void * Connected ( void *x )
             ct++ ;
             token = strtok( NULL, del) ;
           }
+          send( newsockfd, lbuffer, sizeof( lbuffer ), 0 ) ;
+          printf( "lbuffer: %s\n", lbuffer) ;
         }
       }         
-      send( newsockfd, lbuffer, sizeof( lbuffer ), 0 ) ;  
+        
     }
     else if ( strcmp( buffer, "update" ) == 0 )
     {
@@ -103,6 +110,7 @@ void * Connected ( void *x )
       //delete record 
       info[id][0] = '\0' ;
       id = -1 ;
+      users -- ;
     } 
   }
   pthread_exit( NULL ) ;
