@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <sys/stat.h>
 #include <pthread.h>
+#include <errno.h>
 
 void syserr ( char *msg )
 {
@@ -54,11 +55,10 @@ int connectTo ( char * ip, int portno )
   struct sockaddr_in serv_addr ;
 
   server = gethostbyname( ip ) ;
-  if(!server) syserr( "Error no such host\n" ) ; 
+  if(!server)  return -1 ;//syserr( "Error no such host\n" ) ; 
 
   sockfd = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP ) ;
-  if ( sockfd < 0 ) syserr( "can't open socket" ) ;
-  printf( "create socket...\n" ) ;
+  if ( sockfd < 0 ) return -1 ; //syserr( "can't open socket" ) ;
 
   memset( &serv_addr, 0, sizeof( serv_addr ) ) ;
   serv_addr.sin_family = AF_INET ;
@@ -66,8 +66,7 @@ int connectTo ( char * ip, int portno )
   serv_addr.sin_port = htons( portno ) ;
 
   if ( connect( sockfd, ( struct sockaddr* )&serv_addr, sizeof( serv_addr )) < 0 )
-    syserr( "can't connect to server" ) ;
-  printf( "connect...\n" ) ;
+    return -1 ; //syserr( "can't connect to server" ) ;
   
   return sockfd ;
 }
@@ -121,24 +120,26 @@ void * server ( void *x )
 
 int main ( int argc, char *argv[] )
 {
-  int sockfd, cTracker, n, len, total, serverport, peerport, newsockfd, users ;
+  int sockfd, cTracker, in n, len, total, serverport, peerport, newsockfd, users ;
   char buffer[255] ;
   char lbuffer[500] ;
-  char lbuffer2[500] ;
   char localport[6] ;
   char filenum[5] ;
   char filename[15] ;
   char addr[15] ;
   char files[2500] ;
+  char files2[2500] ;
   char *token ;  
   char *line ;
-  FILE *in ;
   const char del[2] = " " ;
   pthread_t threads[0] ;
+  mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH ;
   
   if ( argv[2] == NULL ) serverport = 5000 ;
   else serverport = atoi( argv[2] ) ;
+  
   sockfd = connectTo( argv[1], serverport ) ;
+  if ( sockfd == -1 ) syserr( "Error connecting to tracker\n" ) ;
 
   if ( argc == 4 ) strcpy( localport, argv[3] )  ;
   else strcpy( localport, "6000" ); 
@@ -154,9 +155,12 @@ int main ( int argc, char *argv[] )
     printf("PLEASE ENTER MESSAGE: ") ;
     fgets( buffer, 255, stdin ) ;
     n = strlen( buffer ) ;
-    if(n>0 && buffer[n-1] == '\n') buffer[n-1] = '\0' ;
-   
-    token = strtok(buffer, del) ;
+    if(n>1 && buffer[n-1] == '\n') 
+    {
+      buffer[n-1] = '\0' ; 
+      token = strtok(buffer, del) ;
+    }
+    else token = "repeat" ;
 
     if ( strcmp( token, "list" ) == 0 )
     {
@@ -178,12 +182,12 @@ int main ( int argc, char *argv[] )
     else if ( strcmp( token, "download" ) == 0 )
     {
       //download file
-      strcpy( lbuffer2, lbuffer) ;
+      strcpy( files2, files) ;
       
       token = strtok( NULL, del) ;
       sprintf( filenum, "[%s]", token ) ;
       
-      line = strtok( files, "\n" ) ;
+      line = strtok( files2, "\n" ) ;
       while ( line != NULL )
       {
         if ( strstr( line, filenum ) != NULL ) break ;
@@ -204,43 +208,49 @@ int main ( int argc, char *argv[] )
         peerport = atoi( token ) ;
         
         newsockfd = connectTo( addr, peerport ) ;
-        strcpy( buffer, filename) ;
-        n = send( newsockfd, buffer, sizeof( buffer ), 0 ) ;
-        
-        n = recv( newsockfd, buffer, sizeof( buffer ), 0 ) ;
-        len = atoi( buffer ) ;
-        
-        in = fopen(filename, "w") ;
-        if ( in != NULL ) 
+        if ( newsockfd > 0 )
         {
-          total = 0 ;
-          while (len > total)
-          {
-            n = recv( newsockfd, buffer, sizeof( buffer ), 0 ) ;
-            fwrite( buffer, sizeof(char), n, in ) ; 
-            total += n ;
-          }
+          strcpy( buffer, filename) ;
+          n = send( newsockfd, buffer, sizeof( buffer ), 0 ) ;
           
-          //check 
-          if ( total == len ) 
+          n = recv( newsockfd, buffer, sizeof( buffer ), 0 ) ;
+          len = atoi( buffer ) ;
+          
+          in = open( filename, O_WRONLY | O_CREAT | O_EXCL, mode ) ;
+
+          if ( in > 0 ) 
           {
-            printf( "Successful !\n" ) ;  
-            strcpy( buffer, "update" ) ; 
-            send( sockfd, buffer, sizeof( buffer ), 0 ) ;
+            total = 0 ;
+            printf( "Download Started\n" ) ;
+            while (len > total)
+            {
+              n = recv( newsockfd, buffer, sizeof( buffer ), 0 ) ;
+
+              n = write( in, buffer, n ) ;
+
+              total += n ;
+            }
             
-            sprintf( buffer, "%s %s", filename, localport ) ;
-            send( sockfd, buffer, sizeof( buffer ), 0 ) ;
-          }
-          else
-          {
-            printf( "Error receiving file. Please try again.\n" ) ;
-            remove( filename ) ;
-          }
-          fclose(in) ;
-        }
-        else printf( "Error creating file\n" ) ;
-        
-        
+            //check 
+            if ( total == len ) 
+            {
+              printf( "Successful !\n" ) ;  
+              strcpy( buffer, "update" ) ; 
+              send( sockfd, buffer, sizeof( buffer ), 0 ) ;
+              
+              sprintf( buffer, "%s %s", filename, localport ) ;
+              send( sockfd, buffer, sizeof( buffer ), 0 ) ;
+            }
+            else
+            {
+              printf( "Error receiving file. Please try again.\n" ) ;
+              remove( filename ) ;
+            }
+            close(in) ;
+          }  
+          else printf( "Error creating file. It may already exist\n" ) ;
+        }       
+        else printf( "Error connecting to peer\n" ) ;
       }
       else printf( "Bad file number\n" ) ; 
       

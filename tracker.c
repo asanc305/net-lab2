@@ -88,7 +88,6 @@ void * Connected ( void *x )
             token = strtok( NULL, del) ;
           }
           send( newsockfd, lbuffer, sizeof( lbuffer ), 0 ) ;
-          printf( "lbuffer: %s\n", lbuffer) ;
         }
       }         
         
@@ -102,7 +101,6 @@ void * Connected ( void *x )
       
       token = strtok( NULL, " " ) ;
       sprintf( lbuffer, "%s %s:%s\n", filename, ip, token ) ;
-      printf("len %zd\n", strlen(lbuffer) ) ;
       strcat( info[id], lbuffer ) ;
     }
     else 
