@@ -13,6 +13,8 @@
 #include <pthread.h>
 #include <errno.h>
 
+int quit = 0 ;
+
 void syserr ( char *msg )
 {
   perror( msg ) ;
@@ -79,6 +81,8 @@ void * server ( void *x )
   struct stat f_stat ;
   socklen_t addrlen ;
   char buffer[255] ;
+  fd_set readset ;
+  struct timeval tv ;
   
   portno = atoi( ( char* ) x ) ;
   
@@ -97,30 +101,48 @@ void * server ( void *x )
 
   for(;;) 
   {
-	  addrlen = sizeof(clt_addr); 
-	  newsockfd = accept(sockfd, (struct sockaddr*)&clt_addr, &addrlen);
-	  if(newsockfd < 0) syserr("can't accept"); 
+	addrlen = sizeof(clt_addr); 
+	
+	do
+	{
+	  FD_ZERO(&readset) ;
+	  FD_SET(sockfd, &readset) ;
+	  
+	  tv.tv_sec = 3 ;
+	  tv.tv_usec = 0 ;
+	  
+	  n = select(sockfd+1, &readset, NULL, NULL, &tv) ;
+	  
+	}while(n == 0 && quit == 0 ) ;
+	
+	if(quit == 1) break ;
+	
+	newsockfd = accept(sockfd, (struct sockaddr*)&clt_addr, &addrlen);
+	
+	if(newsockfd < 0) syserr("can't accept"); 
 
-	  child = fork() ;
-	  if (child < 0) syserr("Fork error") ;
-	  else if (child == 0)
-	  {
-	    n = recv( newsockfd, buffer, sizeof( buffer ), 0 ) ;
-	    out = open(buffer, O_RDONLY) ;
-	    
-	    fstat(out, &f_stat) ; 
-		  sprintf(buffer, "%jd", f_stat.st_size) ;
-		  n = send(newsockfd, buffer, sizeof(buffer), 0) ;
+	child = fork() ;
+	if (child < 0) syserr("Fork error") ;
+	else if (child == 0)
+	{
+	  n = recv( newsockfd, buffer, sizeof( buffer ), 0 ) ;
+	  out = open(buffer, O_RDONLY) ;
+	   
+	  fstat(out, &f_stat) ; 
+	  sprintf(buffer, "%jd", f_stat.st_size) ;
+	  n = send(newsockfd, buffer, sizeof(buffer), 0) ;
       
-		  n = sendfile(newsockfd, out, NULL, f_stat.st_size) ;
+	  n = sendfile(newsockfd, out, NULL, f_stat.st_size) ;
       close(out) ;
-		}
+	}
   }
+  
+  pthread_exit( NULL ) ;
 }
 
 int main ( int argc, char *argv[] )
 {
-  int sockfd, cTracker, in n, len, total, serverport, peerport, newsockfd, users ;
+  int sockfd, cTracker, in, n, len, total, serverport, peerport, newsockfd, users ;
   char buffer[255] ;
   char lbuffer[500] ;
   char localport[6] ;
@@ -132,7 +154,7 @@ int main ( int argc, char *argv[] )
   char *token ;  
   char *line ;
   const char del[2] = " " ;
-  pthread_t threads[0] ;
+  pthread_t sthread ;
   mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH ;
   
   if ( argv[2] == NULL ) serverport = 5000 ;
@@ -146,7 +168,7 @@ int main ( int argc, char *argv[] )
   
   printlist( localport, sockfd ) ;
   
-  if ( pthread_create( &threads[0], NULL, server, ( void* ) localport ) != 0 )
+  if ( pthread_create( &sthread, NULL, server, ( void* ) localport ) != 0 )
       syserr( "Pthread\n" ) ; 
 
   cTracker = 1 ;
@@ -259,6 +281,8 @@ int main ( int argc, char *argv[] )
     {
       send( sockfd, buffer, sizeof( buffer ), 0 ) ; 
       cTracker = 0 ; 
+	  quit = 1 ;
+	  (void) pthread_join( sthread, NULL ) ;
     }
     else printf( "Error command does not exist!\n" ) ;
   }
